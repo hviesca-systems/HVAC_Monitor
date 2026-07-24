@@ -1,55 +1,88 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_SHT31.h>
+#include <string>
 
-// Feature Branch Test
+using std::string;
+
+struct HVACReading 
+{
+  float temperatureF;
+  float humidity;
+  float vibration;
+  int airflow;
+  string status;
+  unsigned long timeMs;
+};
+
+HVACReading currentReading;
+
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
+
 void setup()
 {
-    Serial.begin(9600);
-    delay(1000);
+  Serial.begin(115200);
+  delay(1000);
 
-    Wire.begin(21, 22);
+  Wire.begin(21, 22); // SDA, SCL
 
-    Serial.println();
-    Serial.println("Starting I2C scan...");
+  if(!sht31.begin(0x45))
+  {
+    Serial.println("SHT31 sensor not found");
+    Serial.println("Check power, ground, SDA, and SCL wiring.");
+
+    while (true)
+    {
+      delay(1000);
+    }
+  }
+  Serial.println("SHT31 sensor initialized successfully");
 }
 
-void loop()
+void loop() 
 {
-    int deviceCount = 0;
+  float temperatureC = sht31.readTemperature();
+  float humidityPercent = sht31.readHumidity();
+
+  if (isnan(temperatureC) || isnan(humidityPercent))
+  {
+    Serial.println("Failed to read data from SHT31 sensor");
+    delay(2000);
+    return;
+  }
+
+  currentReading.temperatureF = (temperatureC * 9.0 / 5.0) + 32.0;
+    currentReading.humidity = humidityPercent;
+
+    currentReading.vibration = 15.0;
+    currentReading.airflow = 620;
+    currentReading.status = "NORMAL";
+    currentReading.timeMs = millis();
 
     Serial.println();
-    Serial.println("Scanning I2C bus...");
+    Serial.println("Live HVAC reading:");
 
-    for (uint8_t address = 1; address < 127; address++)
-    {
-        Wire.beginTransmission(address);
-        uint8_t error = Wire.endTransmission();
+    Serial.print("Temperature: ");
+    Serial.print(currentReading.temperatureF);
+    Serial.println(" F");
 
-        if (error == 0)
-        {
-            Serial.print("I2C device found at address 0x");
+    Serial.print("Humidity: ");
+    Serial.print(currentReading.humidity);
+    Serial.println(" %");
 
-            if (address < 16)
-            {
-                Serial.print("0");
-            }
+    Serial.print("Vibration: ");
+    Serial.println(currentReading.vibration);
 
-            Serial.println(address, HEX);
-            deviceCount++;
-        }
-    }
+    Serial.print("Airflow: ");
+    Serial.println(currentReading.airflow);
 
-    if (deviceCount == 0)
-    {
-        Serial.println("No I2C devices found.");
-    }
-    else
-    {
-        Serial.print("Total devices found: ");
-        Serial.println(deviceCount);
-    }
+    Serial.print("Status: ");
+    Serial.println(currentReading.status.c_str());
 
-    Serial.println("Scan complete.");
+    Serial.print("Time: ");
+    Serial.print(currentReading.timeMs);
+    Serial.println(" ms");
 
-    delay(5000);
+    delay(2000);
 }
