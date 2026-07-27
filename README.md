@@ -106,6 +106,77 @@ As the project develops, this structure can be passed to functions responsible f
 - Data logging
 - Historical analysis
 
+## Repository Structure
+
+```text
+HVAC_Monitor/
+|-- .vscode/
+|   `-- extensions.json
+|-- diagnostics/
+|   `-- I2C_Scanner.cpp
+|-- include/
+|-- lib/
+|-- src/
+|   `-- main.cpp
+|-- test/
+|-- .gitignore
+|-- platformio.ini
+`-- README.md
+```
+
+### Directory Responsibilities
+
+- `src/` contains the primary ESP32 firmware.
+- `diagnostics/` contains focused hardware-troubleshooting programs.
+- `include/` is reserved for project header files.
+- `lib/` is reserved for project-specific reusable libraries.
+- `test/` is reserved for automated or hardware-assisted tests.
+- `platformio.ini` defines the board, framework, serial speed, and library dependencies.
+- `.gitignore` prevents generated build files and local development artifacts from entering the repository.
+
+## Current Hardware Configuration
+
+| Connection | ESP32 configuration |
+|---|---|
+| SHT31 SDA | GPIO 21 |
+| SHT31 SCL | GPIO 22 |
+| SHT31 I2C address | `0x45` |
+| Serial Monitor speed | 115200 baud |
+| PlatformIO environment | `esp32dev` |
+
+The wiring and I2C address must be verified against the specific sensor breakout being used before uploading firmware.
+
+## Build and Run
+
+### Prerequisites
+
+- Visual Studio Code
+- PlatformIO IDE extension
+- USB data cable compatible with the ESP32
+- ESP32 development board
+- SHT31 temperature and humidity sensor
+
+### PlatformIO Workflow
+
+1. Clone or download the repository.
+2. Open the repository folder in Visual Studio Code.
+3. Allow PlatformIO to install the platform and library dependencies defined in `platformio.ini`.
+4. Connect the ESP32 to the computer using a USB data cable.
+5. Build the `esp32dev` environment.
+6. Upload the firmware to the ESP32.
+7. Open the Serial Monitor at 115200 baud.
+8. Verify that the SHT31 initializes and begins reporting live readings.
+
+### Command-Line Workflow
+
+```powershell
+pio run
+pio run --target upload
+pio device monitor --baud 115200
+```
+
+The command-line workflow requires the PlatformIO Core command-line tools to be available in the terminal environment.
+
 ## Simulated Data
 
 The current firmware uses placeholder values for portions of the developing data model:
