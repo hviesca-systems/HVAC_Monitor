@@ -1,8 +1,8 @@
 # ESP32 HVAC Health Monitoring System
 
-An embedded-system prototype designed to monitor HVAC operating conditions using temperature, humidity, and vibration sensing.
+An ESP32-based embedded-systems project that currently monitors HVAC temperature and humidity, with vibration sensing, airflow analysis, local alerts, and condition classification planned for later development.
 
-The system uses an ESP32 to collect sensor data, evaluate operating conditions, and provide local status notifications through an OLED display, indicator LEDs, and an audible buzzer.
+The current PlatformIO firmware reads live data from an SHT31 sensor, stores measurements in a structured C++ data model, detects sensor-read failures, and reports results through the Serial Monitor. The project is being expanded incrementally as a practical study of embedded C++, data structures, algorithms, system architecture, and professional Git workflows.
 
 ## Project Status
 
