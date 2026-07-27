@@ -37,6 +37,75 @@ The current firmware reads live temperature and humidity data from an SHT31 sens
 - Dedicated I2C scanner for sensor and display diagnostics.
 - PlatformIO-based library and dependency management.
 
+## Technology Stack
+
+### Hardware
+
+- ESP32 development board
+- SHT31 temperature and humidity sensor
+- I2C communication bus
+
+### Software
+
+- C++
+- Arduino framework
+- PlatformIO
+- Visual Studio Code
+- Git and GitHub
+- Adafruit SHT31 library
+
+## Current System Architecture
+
+The current firmware follows a simple embedded-data pipeline:
+
+1. The ESP32 initializes serial communication and the I2C bus.
+2. The SHT31 sensor is initialized at I2C address `0x45`.
+3. The firmware reads temperature and humidity measurements.
+4. Invalid sensor readings are detected before further processing.
+5. Temperature is converted from Celsius to Fahrenheit.
+6. Measurements and placeholder values are stored in an `HVACReading` structure.
+7. The current reading is reported through the Serial Monitor.
+8. The process repeats every two seconds.
+
+```text
+SHT31 Sensor
+     |
+     | I2C
+     v
+ESP32 Firmware
+     |
+     | validation and conversion
+     v
+HVACReading Data Structure
+     |
+     | formatted output
+     v
+Serial Monitor
+```
+
+## Firmware Data Model
+
+The firmware currently stores one HVAC sample using the following fields:
+
+| Field | Type | Current purpose |
+|---|---|---|
+| `temperatureF` | `float` | Live temperature in degrees Fahrenheit |
+| `humidity` | `float` | Live relative humidity percentage |
+| `vibration` | `float` | Simulated vibration value |
+| `airflow` | `int` | Simulated airflow value |
+| `status` | `std::string` | Simulated system-condition label |
+| `timeMs` | `unsigned long` | Time since the ESP32 started, in milliseconds |
+
+The `HVACReading` structure acts as the firmware's current data model. It groups the values belonging to one HVAC observation into a single object rather than storing them as unrelated variables.
+
+As the project develops, this structure can be passed to functions responsible for:
+
+- Condition classification
+- OLED output
+- Alert generation
+- Data logging
+- Historical analysis
+
 ## Simulated Data
 
 The current firmware uses placeholder values for portions of the developing data model:
