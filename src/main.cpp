@@ -20,6 +20,40 @@ HVACReading currentReading;
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
+constexpr float TEMP_DANGER_LOW_F = 50.0F;
+constexpr float TEMP_WARNING_LOW_F = 60.0F;
+constexpr float TEMP_WARNING_HIGH_F = 90.0F;
+constexpr float TEMP_DANGER_HIGH_F = 100.0F;
+
+constexpr float HUMIDITY_DANGER_LOW_PERCENT = 20.0F;
+constexpr float HUMIDITY_WARNING_LOW_PERCENT = 30.0F;
+constexpr float HUMIDITY_WARNING_HIGH_PERCENT = 65.0F;
+constexpr float HUMIDITY_DANGER_HIGH_PERCENT = 75.0F;
+
+string classifyStatus(float temperatureF, float humidityPercent)
+{
+  const bool temperatureDanger = temperatureF < TEMP_DANGER_LOW_F || temperatureF > TEMP_DANGER_HIGH_F;
+
+  const bool humidityDanger = humidityPercent < HUMIDITY_DANGER_LOW_PERCENT || humidityPercent > HUMIDITY_DANGER_HIGH_PERCENT;
+
+  if (temperatureDanger || humidityDanger)
+  {
+    return "DANGER";
+  }
+
+  const bool temperatureWarning = temperatureF < TEMP_WARNING_LOW_F || temperatureF > TEMP_WARNING_HIGH_F;
+
+  const bool humidityWarning = humidityPercent < HUMIDITY_WARNING_LOW_PERCENT || humidityPercent > HUMIDITY_WARNING_HIGH_PERCENT;
+
+  if (temperatureWarning || humidityWarning)
+  {
+    return "WARNING";
+  }
+
+  return "NORMAL";
+
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -57,7 +91,7 @@ void loop()
 
     currentReading.vibration = 15.0;
     currentReading.airflow = 620;
-    currentReading.status = "NORMAL";
+    currentReading.status = classifyStatus(currentReading.temperatureF, currentReading.humidity);
     currentReading.timeMs = millis();
 
     Serial.println();
