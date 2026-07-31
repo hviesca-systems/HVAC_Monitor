@@ -3,6 +3,7 @@
 #include <SPI.h>
 #include <Adafruit_SHT31.h>
 #include <string>
+#include <StatusClassifier.h>
 
 using std::string;
 
@@ -57,7 +58,7 @@ void loop()
 
     currentReading.vibration = 15.0;
     currentReading.airflow = 620;
-    currentReading.status = "NORMAL";
+    currentReading.status = classifyStatus(currentReading.temperatureF, currentReading.humidity);
     currentReading.timeMs = millis();
 
     Serial.println();

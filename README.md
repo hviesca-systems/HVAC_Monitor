@@ -1,6 +1,6 @@
 # ESP32 HVAC Health Monitoring System
 
-An ESP32-based embedded-systems project that currently monitors HVAC temperature and humidity, with vibration sensing, airflow analysis, local alerts, and condition classification planned for later development.
+An ESP32-based embedded-systems project that currently monitors HVAC temperature and humidity and automatically classifies environmental conditions as `NORMAL`, `WARNING`, or `DANGER`. Vibration sensing, airflow analysis, and local hardware alerts remain planned for later development.
 
 The current PlatformIO firmware reads live data from an SHT31 sensor, stores measurements in a structured C++ data model, detects sensor-read failures, and reports results through the Serial Monitor. The project is being expanded incrementally as a practical study of embedded C++, data structures, algorithms, system architecture, and professional Git workflows.
 
@@ -10,7 +10,7 @@ The current PlatformIO firmware reads live data from an SHT31 sensor, stores mea
 
 This repository is a structured reimplementation of an earlier Arduino IDE prototype. The system is being rebuilt incrementally in VS Code and PlatformIO to improve the firmware architecture, documentation, testing workflow, and understanding of embedded C++, data structures, algorithms, and system design.
 
-The current firmware reads live temperature and humidity data from an SHT31 sensor. Vibration, airflow, and operating-status values are currently simulated while the corresponding hardware and classification logic are developed.
+The current firmware reads live temperature and humidity data from an SHT31 sensor and calculates an operating-status value using documented environmental thresholds. Vibration and airflow values remain simulated while their corresponding hardware is developed.
 
 ## Project Objectives
 
@@ -31,11 +31,49 @@ The current firmware reads live temperature and humidity data from an SHT31 sens
 - Live temperature and humidity measurements.
 - Celsius-to-Fahrenheit temperature conversion.
 - Detection and reporting of failed SHT31 readings.
+- Automatic environmental classification as `NORMAL`, `WARNING`, or `DANGER`.
+- Reusable `StatusClassifier` C++ module containing the classification thresholds and decision algorithm.
+- Severity precedence in which `DANGER` overrides `WARNING`, and `WARNING` overrides `NORMAL`.
+- Native Unity tests covering temperature boundaries, humidity boundaries, and severity precedence.
 - Structured measurement storage using the `HVACReading` C++ structure.
 - Timestamp collection using `millis()`.
 - Serial Monitor output at 115200 baud.
 - Dedicated I2C scanner for sensor and display diagnostics.
 - PlatformIO-based library and dependency management.
+
+## Status Classification
+
+The firmware classifies each valid temperature and humidity reading using the reusable `classifyStatus()` function.
+
+### Temperature Thresholds
+
+| Temperature range | Status |
+|---|---|
+| Below 50°F | `DANGER` |
+| 50°F to below 60°F | `WARNING` |
+| 60°F through 90°F | `NORMAL` |
+| Above 90°F through 100°F | `WARNING` |
+| Above 100°F | `DANGER` |
+
+### Humidity Thresholds
+
+| Relative humidity range | Status |
+|---|---|
+| Below 20% | `DANGER` |
+| 20% to below 30% | `WARNING` |
+| 30% through 65% | `NORMAL` |
+| Above 65% through 75% | `WARNING` |
+| Above 75% | `DANGER` |
+
+When temperature and humidity produce different severity levels, the classifier applies the following precedence:
+
+```text
+DANGER > WARNING > NORMAL
+```
+
+For example, a warning-level temperature combined with danger-level humidity produces an overall `DANGER` result.
+
+These values are the current prototype thresholds used for firmware development and testing. Future system testing may determine whether they should be adjusted or made configurable.
 
 ## Technology Stack
 
@@ -63,9 +101,11 @@ The current firmware follows a simple embedded-data pipeline:
 3. The firmware reads temperature and humidity measurements.
 4. Invalid sensor readings are detected before further processing.
 5. Temperature is converted from Celsius to Fahrenheit.
-6. Measurements and placeholder values are stored in an `HVACReading` structure.
-7. The current reading is reported through the Serial Monitor.
-8. The process repeats every two seconds.
+6. The validated temperature and humidity measurements are passed to the status classifier.
+7. The classifier calculates a `NORMAL`, `WARNING`, or `DANGER` result.
+8. Measurements, simulated vibration and airflow values, and the calculated status are stored in an `HVACReading` structure.
+9. The current reading is reported through the Serial Monitor.
+10. The process repeats every two seconds.
 
 ```text
 SHT31 Sensor
@@ -75,6 +115,10 @@ SHT31 Sensor
 ESP32 Firmware
      |
      | validation and conversion
+     v
+StatusClassifier Module
+     |
+     | NORMAL, WARNING, or DANGER
      v
 HVACReading Data Structure
      |
@@ -93,14 +137,13 @@ The firmware currently stores one HVAC sample using the following fields:
 | `humidity` | `float` | Live relative humidity percentage |
 | `vibration` | `float` | Simulated vibration value |
 | `airflow` | `int` | Simulated airflow value |
-| `status` | `std::string` | Simulated system-condition label |
+| `status` | `std::string` | Calculated environmental-condition label |
 | `timeMs` | `unsigned long` | Time since the ESP32 started, in milliseconds |
 
 The `HVACReading` structure acts as the firmware's current data model. It groups the values belonging to one HVAC observation into a single object rather than storing them as unrelated variables.
 
-As the project develops, this structure can be passed to functions responsible for:
+The current firmware already passes temperature and humidity measurements to the status-classification module. As the project develops, the completed `HVACReading` structure can also be passed to functions responsible for:
 
-- Condition classification
 - OLED output
 - Alert generation
 - Data logging
@@ -116,9 +159,15 @@ HVAC_Monitor/
 |   `-- I2C_Scanner.cpp
 |-- include/
 |-- lib/
+|   `-- StatusClassifier/
+|       `-- src/
+|           |-- StatusClassifier.cpp
+|           `-- StatusClassifier.h
 |-- src/
 |   `-- main.cpp
 |-- test/
+|   `-- test_status_classifier/
+|       `-- test_main.cpp
 |-- .gitignore
 |-- platformio.ini
 `-- README.md
@@ -129,8 +178,8 @@ HVAC_Monitor/
 - `src/` contains the primary ESP32 firmware.
 - `diagnostics/` contains focused hardware-troubleshooting programs.
 - `include/` is reserved for project header files.
-- `lib/` is reserved for project-specific reusable libraries.
-- `test/` is reserved for automated or hardware-assisted tests.
+- `lib/StatusClassifier/` contains the reusable environmental-classification module.
+- `test/test_status_classifier/` contains native Unity tests for boundaries and severity precedence.
 - `platformio.ini` defines the board, framework, serial speed, and library dependencies.
 - `.gitignore` prevents generated build files and local development artifacts from entering the repository.
 
@@ -177,22 +226,42 @@ pio device monitor --baud 115200
 
 The command-line workflow requires the PlatformIO Core command-line tools to be available in the terminal environment.
 
+### Native Unit Tests
+
+The status-classification algorithm can be tested on the development computer without connecting an ESP32:
+
+```powershell
+pio test -e native
+```
+
+The current test suite evaluates:
+
+- 8 temperature-boundary scenarios
+- 8 humidity-boundary scenarios
+- 5 severity-precedence scenarios
+
+The ESP32 firmware can be compiled separately with:
+
+```powershell
+pio run -e esp32dev
+```
+
 ## Simulated Data
 
-The current firmware uses placeholder values for portions of the developing data model:
+The current firmware still uses placeholder values for:
 
 - Vibration level
 - Airflow reading
-- Overall system status
 
-These placeholders allow the program structure, serial output, and `HVACReading` data structure to be developed before the corresponding sensors and decision algorithms are integrated.
+The overall system status is no longer simulated. It is calculated from live temperature and humidity readings by the `StatusClassifier` module.
+
+The remaining placeholders allow the program structure and `HVACReading` data model to continue developing before the vibration and airflow hardware is integrated.
 
 ## Planned Features
 
 - Physical vibration-sensor integration.
 - Airflow-sensing implementation.
 - Configurable warning and danger thresholds.
-- Automatic normal, warning, and danger classification.
 - Real-time OLED measurements and system status.
 - Green, yellow, and red LED status indicators.
 - Audible alerts using an active buzzer.
