@@ -4,6 +4,8 @@
 #include <Adafruit_SHT31.h>
 #include <string>
 #include <StatusClassifier.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 using std::string;
 
@@ -21,6 +23,18 @@ HVACReading currentReading;
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
+constexpr int OLED_WIDTH = 128;
+constexpr int OLED_HEIGHT = 64;
+constexpr int OLED_RESET = -1;
+constexpr uint8_t OLED_ADDRESS = 0x3C;
+
+constexpr int GREEN_LED_PIN = 27;
+constexpr int YELLOW_LED_PIN = 26;
+constexpr int RED_LED_PIN = 25;
+constexpr int BUZZER_PIN = 14;
+
+Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET);
+
 void setup()
 {
   Serial.begin(115200);
@@ -28,7 +42,37 @@ void setup()
 
   Wire.begin(21, 22); // SDA, SCL
 
-  if(!sht31.begin(0x45))
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS))
+  {
+    Serial.println("OLED display not found");
+
+    while (true)
+    {
+      delay(1000);
+    }
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("HVAC Monitor");
+  display.println("OLED initialized");
+  display.display();
+
+  Serial.println("OLED display initialized successfully");
+
+  if (!sht31.begin(0x45))
   {
     Serial.println("SHT31 sensor not found");
     Serial.println("Check power, ground, SDA, and SCL wiring.");
@@ -39,6 +83,52 @@ void setup()
     }
   }
   Serial.println("SHT31 sensor initialized successfully");
+}
+
+void updateDisplay(const HVACReading& reading)
+{
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+
+  display.println("HVAC Monitor");
+  display.println();
+
+  display.print("Temp: ");
+  display.print(reading.temperatureF, 1);
+  display.println(" F");
+
+  display.print("Humidity: ");
+  display.print(reading.humidity, 1);
+  display.println(" %");
+
+  display.print("Status: ");
+  display.println(reading.status.c_str());
+
+  display.display();
+}
+
+void updateStatusOutput(const string& status)
+{
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  if (status == "DANGER")
+  {
+    digitalWrite(RED_LED_PIN, HIGH);
+    digitalWrite(BUZZER_PIN, HIGH);
+  }
+  else if (status == "WARNING")
+  {
+    digitalWrite(YELLOW_LED_PIN, HIGH);
+  }
+  else
+  {
+    digitalWrite(GREEN_LED_PIN, HIGH);
+  }
 }
 
 void loop() 
@@ -60,6 +150,8 @@ void loop()
     currentReading.airflow = 620;
     currentReading.status = classifyStatus(currentReading.temperatureF, currentReading.humidity);
     currentReading.timeMs = millis();
+    updateDisplay(currentReading);
+    updateStatusOutput(currentReading.status);
 
     Serial.println();
     Serial.println("Live HVAC reading:");
