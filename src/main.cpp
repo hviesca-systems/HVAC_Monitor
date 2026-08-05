@@ -8,6 +8,7 @@
 #include <Adafruit_SSD1306.h>
 #include <Adafruit_MPU6050.h>
 #include <math.h>
+#include <SD.h>
 
 using std::string;
 
@@ -16,7 +17,6 @@ struct HVACReading
   float temperatureF;
   float humidity;
   float vibration;
-  int airflow;
   string status;
   unsigned long timeMs;
 };
@@ -36,7 +36,18 @@ constexpr int YELLOW_LED_PIN = 26;
 constexpr int RED_LED_PIN = 25;
 constexpr int BUZZER_PIN = 14;
 
+constexpr int SD_SCK_PIN = 18;
+constexpr int SD_MISO_PIN = 19;
+constexpr int SD_MOSI_PIN = 23;
+constexpr int SD_CS_PIN = 5;
+
+constexpr char DATA_LOG_PATH[] = "/hvac_readings.csv";
+
 Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, OLED_RESET);
+
+bool sdCardReady = false;
+bool ensureDataLogHeader();
+bool logReadingToSD(const HVACReading& reading);
 
 void setup()
 {
@@ -44,6 +55,19 @@ void setup()
   delay(1000);
 
   Wire.begin(21, 22); // SDA, SCL
+
+  SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+
+  if (SD.begin(SD_CS_PIN))
+  {
+    sdCardReady = true;
+    Serial.println("microSD card initialized successfully.");
+  }
+  else
+  {
+    Serial.println("microSD card initialization failed!");
+    Serial.println("Monitoring will continue without data logging.");
+  }
 
   pinMode(GREEN_LED_PIN, OUTPUT);
   pinMode(YELLOW_LED_PIN, OUTPUT);
@@ -99,6 +123,15 @@ void setup()
   }
 
   Serial.println("MPU6050 sensor initialized successfully");
+
+  if (ensureDataLogHeader())
+  {
+    Serial.println("HVAC CSV log is ready.");
+  }
+  else
+  {
+    Serial.println("HVAC CSV log is unavailable.");
+  }
 }
 
 void updateDisplay(const HVACReading& reading)
@@ -126,6 +159,59 @@ void updateDisplay(const HVACReading& reading)
   display.println(reading.status.c_str());
 
   display.display();
+}
+
+bool ensureDataLogHeader()
+{
+  if (!sdCardReady)
+  {
+    return false;
+  }
+
+  File dataFile = SD.open(DATA_LOG_PATH, FILE_APPEND);
+
+  if (!dataFile)
+  {
+    Serial.println("Failed to open HVAC data log.");
+    return false;
+  }
+
+  if (dataFile.size() == 0)
+  {
+    dataFile.println("time_ms,temperature_f,humidity_percent,vibration_mps2,status");
+  }
+
+  dataFile.close();
+  return true;
+}
+
+bool logReadingToSD(const HVACReading& reading)
+{
+  if (!sdCardReady)
+  {
+    return false;
+  }
+
+  File dataFile = SD.open(DATA_LOG_PATH, FILE_APPEND);
+
+  if (!dataFile)
+  {
+    Serial.println("Failed to open HVAC data log for writing.");
+    return false;
+  }
+
+  dataFile.print(reading.timeMs);
+  dataFile.print(",");
+  dataFile.print(reading.temperatureF, 2);
+  dataFile.print(",");
+  dataFile.print(reading.humidity, 2);
+  dataFile.print(",");
+  dataFile.print(reading.vibration, 2);
+  dataFile.print(",");
+  dataFile.println(reading.status.c_str());
+
+  dataFile.close();
+  return true;
 }
 
 void updateStatusOutput(const string& status)
@@ -177,10 +263,13 @@ void loop()
   currentReading.temperatureF = (temperatureC * 9.0f / 5.0f) + 32.0f;
   currentReading.humidity = humidityPercent;
   currentReading.vibration = fabs(accelerationMagnitude - 9.81f);
-  currentReading.airflow = 620;
-  currentReading.status =
-    classifyStatus(currentReading.temperatureF, currentReading.humidity);
+  currentReading.status = classifyStatus(currentReading.temperatureF, currentReading.humidity);
   currentReading.timeMs = millis();
+
+  if (!logReadingToSD(currentReading))
+  {
+    Serial.println("Warning: HVAC reading was not written to SD card.");
+  }
 
   updateDisplay(currentReading);
   updateStatusOutput(currentReading.status);
@@ -198,9 +287,6 @@ void loop()
 
   Serial.print("Vibration: ");
   Serial.println(currentReading.vibration);
-
-  Serial.print("Airflow: ");
-  Serial.println(currentReading.airflow);
 
   Serial.print("Status: ");
   Serial.println(currentReading.status.c_str());
