@@ -1,34 +1,51 @@
-# ESP32 HVAC Health Monitoring System
+# ESP32 HVAC Machine Health Monitoring System
 
-An ESP32-based embedded-systems project that currently monitors HVAC temperature and humidity and automatically classifies environmental conditions as `NORMAL`, `WARNING`, or `DANGER`. Vibration sensing, airflow analysis, and local hardware alerts remain planned for later development.
+An ESP32-based embedded monitoring prototype that measures HVAC temperature, humidity, and vibration conditions, displays live readings locally, generates visual and audible status alerts, and records operating data to a microSD card in CSV format.
 
-The current PlatformIO firmware reads live data from an SHT31 sensor, stores measurements in a structured C++ data model, detects sensor-read failures, and reports results through the Serial Monitor. The project is being expanded incrementally as a practical study of embedded C++, data structures, algorithms, system architecture, and professional Git workflows.
+The project combines embedded C++, sensor integration, hardware diagnostics, automated status-classification testing, local user feedback, persistent data logging, and a professional Git/GitHub development workflow.
 
 ## Project Status
 
-**Active development - PlatformIO reimplementation**
+**Current release milestone: `v0.1.0` preparation**
 
-This repository is a structured reimplementation of an earlier Arduino IDE prototype. The system is being rebuilt incrementally in VS Code and PlatformIO to improve the firmware architecture, documentation, testing workflow, and understanding of embedded C++, data structures, algorithms, and system design.
+The verified prototype currently integrates:
 
-The current firmware reads live temperature and humidity data from an SHT31 sensor and calculates an operating-status value using documented environmental thresholds. Vibration and airflow values remain simulated while their corresponding hardware is developed.
+- SHT31 temperature and humidity sensing
+- MPU6050 acceleration-based vibration monitoring
+- SSD1306 OLED display output
+- Green, yellow, and red status LEDs
+- Active-buzzer danger alerts
+- Automatic `NORMAL`, `WARNING`, and `DANGER` classification
+- microSD data logging using SPI
+- Native Unity tests for the environmental-status classifier
+- Dedicated I2C and microSD diagnostic firmware
+
+The current system has been tested on physical hardware using PlatformIO and the Arduino framework. Temperature, humidity, vibration estimate, operating status, and elapsed time are stored in `/hvac_readings.csv`.
+
+Airflow is not currently measured. The earlier placeholder airflow value was removed so the firmware reports only values produced by installed hardware. Differential-pressure or airflow sensing remains planned for a later, calibrated project phase.
 
 ## Project Objectives
 
-- Monitor HVAC temperature and humidity conditions.
-- Detect abnormal vibration that may indicate mechanical problems.
-- Measure or estimate HVAC airflow conditions.
-- Classify operating conditions as normal, warning, or danger.
-- Present system status locally without requiring an internet connection.
-- Support hardware troubleshooting through dedicated diagnostic programs.
-- Create a modular foundation for data logging and long-term condition monitoring.
-- Develop the project using maintainable embedded-software architecture.
+- Monitor HVAC temperature, humidity, and vibration conditions using installed sensors.
+- Classify temperature and humidity conditions as `NORMAL`, `WARNING`, or `DANGER`.
+- Present live measurements and system status through an OLED display.
+- Provide local visual and audible alerts using LEDs and an active buzzer.
+- Record verified sensor measurements and status information to a microSD card.
+- Continue core monitoring when removable storage is unavailable.
+- Support hardware troubleshooting through dedicated diagnostic firmware.
+- Maintain modular embedded C++ firmware and reusable classification logic.
+- Validate classification behavior through native automated tests.
+- Document hardware interfaces, firmware behavior, testing, and known limitations.
+- Establish a foundation for future vibration calibration, airflow sensing, trend analysis, and field testing.
 
 ## Current Implementation
 
 - ESP32 development using PlatformIO and the Arduino framework.
-- SHT31 temperature and humidity sensor initialization at I2C address `0x45`.
-- I2C communication using GPIO 21 for SDA and GPIO 22 for SCL.
-- Live temperature and humidity measurements.
+- SHT31 temperature and humidity sensor at I2C address `0x45`.
+- MPU6050 accelerometer at I2C address `0x68`.
+- SSD1306 OLED display at I2C address `0x3C`.
+- Shared I2C bus using GPIO 21 for SDA and GPIO 22 for SCL.
+- Live temperature, humidity, and acceleration-based vibration readings.
 - Celsius-to-Fahrenheit temperature conversion.
 - Detection and reporting of failed SHT31 readings.
 - Automatic environmental classification as `NORMAL`, `WARNING`, or `DANGER`.
@@ -36,9 +53,14 @@ The current firmware reads live temperature and humidity data from an SHT31 sens
 - Severity precedence in which `DANGER` overrides `WARNING`, and `WARNING` overrides `NORMAL`.
 - Native Unity tests covering temperature boundaries, humidity boundaries, and severity precedence.
 - Structured measurement storage using the `HVACReading` C++ structure.
-- Timestamp collection using `millis()`.
+- Elapsed-time collection using `millis()`.
+- SSD1306 OLED output for live measurements and status.
+- Green, yellow, and red LED status indicators.
+- Active-buzzer alert during `DANGER` conditions.
+- microSD initialization and CSV logging over SPI.
+- Graceful continuation of monitoring when SD initialization fails.
+- Dedicated I2C scanner and microSD diagnostic firmware.
 - Serial Monitor output at 115200 baud.
-- Dedicated I2C scanner for sensor and display diagnostics.
 - PlatformIO-based library and dependency management.
 
 ## Status Classification
@@ -81,73 +103,106 @@ These values are the current prototype thresholds used for firmware development 
 
 - ESP32 development board
 - SHT31 temperature and humidity sensor
-- I2C communication bus
+- MPU6050 accelerometer
+- SSD1306 128 x 64 OLED display
+- microSD card module
+- FAT32-formatted microSD card
+- Green, yellow, and red LEDs
+- Current-limiting resistors
+- Active buzzer
+- Breadboard and jumper wires
+- Digital multimeter
 
-### Software
+### Software and Frameworks
 
-- C++
+- C and C++
 - Arduino framework
 - PlatformIO
 - Visual Studio Code
 - Git and GitHub
-- Adafruit SHT31 library
+- Unity native test framework
+
+### Libraries
+
+- Adafruit SHT31 Library
+- Adafruit MPU6050
+- Adafruit Unified Sensor
+- Adafruit GFX Library
+- Adafruit SSD1306
+- Wire
+- SPI
+- SD
+- FS
+- Project-local `StatusClassifier` library
+
+### Communication Interfaces
+
+- I2C for the SHT31, MPU6050, and OLED
+- SPI for the microSD module
+- GPIO for LEDs and the active buzzer
+- UART serial communication for diagnostics and live output
 
 ## Current System Architecture
 
-The current firmware follows a simple embedded-data pipeline:
+The firmware follows a multi-input, multi-output embedded-data pipeline:
 
-1. The ESP32 initializes serial communication and the I2C bus.
-2. The SHT31 sensor is initialized at I2C address `0x45`.
-3. The firmware reads temperature and humidity measurements.
-4. Invalid sensor readings are detected before further processing.
-5. Temperature is converted from Celsius to Fahrenheit.
-6. The validated temperature and humidity measurements are passed to the status classifier.
-7. The classifier calculates a `NORMAL`, `WARNING`, or `DANGER` result.
-8. Measurements, simulated vibration and airflow values, and the calculated status are stored in an `HVACReading` structure.
-9. The current reading is reported through the Serial Monitor.
-10. The process repeats every two seconds.
+1. The ESP32 initializes serial communication, the I2C bus, and the SPI bus.
+2. The microSD card is initialized. If initialization fails, monitoring continues without data logging.
+3. The SSD1306 OLED, SHT31 sensor, and MPU6050 sensor are initialized.
+4. The firmware reads temperature and humidity from the SHT31.
+5. Invalid SHT31 readings are detected before further processing.
+6. Temperature is converted from Celsius to Fahrenheit.
+7. Acceleration data is collected from the MPU6050.
+8. A vibration estimate is calculated from acceleration magnitude relative to gravity.
+9. Temperature and humidity are passed to the `StatusClassifier` module.
+10. The classifier returns `NORMAL`, `WARNING`, or `DANGER`.
+11. The current measurements, status, and elapsed time are stored in an `HVACReading` structure.
+12. The OLED displays the current measurements and status.
+13. The LEDs and buzzer provide local status feedback.
+14. The reading is appended to `/hvac_readings.csv` when the microSD card is available.
+15. The same reading is reported through the Serial Monitor.
+16. The process repeats approximately every two seconds.
 
 ```text
-SHT31 Sensor
-     |
-     | I2C
-     v
-ESP32 Firmware
-     |
-     | validation and conversion
-     v
-StatusClassifier Module
-     |
-     | NORMAL, WARNING, or DANGER
-     v
-HVACReading Data Structure
-     |
-     | formatted output
-     v
-Serial Monitor
+SHT31 Sensor --------\
+                      \
+MPU6050 Sensor --------> ESP32 Firmware
+                           |
+                           | validation, conversion,
+                           | vibration estimate, and classification
+                           v
+                    HVACReading Structure
+                           |
+          +----------------+----------------+
+          |                |                |
+          v                v                v
+     OLED Display     LEDs and Buzzer   Serial Monitor
+                           |
+                           v
+                    Local Status Alert
+
+HVACReading Structure
+          |
+          | SPI
+          v
+   microSD CSV Logging
 ```
 
 ## Firmware Data Model
 
-The firmware currently stores one HVAC sample using the following fields:
+The firmware stores one HVAC sample using the following fields:
 
 | Field | Type | Current purpose |
 |---|---|---|
 | `temperatureF` | `float` | Live temperature in degrees Fahrenheit |
 | `humidity` | `float` | Live relative humidity percentage |
-| `vibration` | `float` | Simulated vibration value |
-| `airflow` | `int` | Simulated airflow value |
+| `vibration` | `float` | Acceleration-based vibration estimate in meters per second squared |
 | `status` | `std::string` | Calculated environmental-condition label |
-| `timeMs` | `unsigned long` | Time since the ESP32 started, in milliseconds |
+| `timeMs` | `unsigned long` | Elapsed time since the ESP32 started, in milliseconds |
 
-The `HVACReading` structure acts as the firmware's current data model. It groups the values belonging to one HVAC observation into a single object rather than storing them as unrelated variables.
+The `HVACReading` structure groups all values belonging to one observation into a single object. The same object is passed to the OLED, status-output, Serial Monitor, and microSD logging functions.
 
-The current firmware already passes temperature and humidity measurements to the status-classification module. As the project develops, the completed `HVACReading` structure can also be passed to functions responsible for:
-
-- OLED output
-- Alert generation
-- Data logging
-- Historical analysis
+Airflow is intentionally absent from the data model because the current prototype does not contain calibrated airflow-sensing hardware.
 
 ## Repository Structure
 
@@ -156,7 +211,8 @@ HVAC_Monitor/
 |-- .vscode/
 |   `-- extensions.json
 |-- diagnostics/
-|   `-- I2C_Scanner.cpp
+|   |-- I2C_Scanner.cpp
+|   `-- SD_Card_Test.cpp
 |-- include/
 |-- lib/
 |   `-- StatusClassifier/
@@ -185,13 +241,48 @@ HVAC_Monitor/
 
 ## Current Hardware Configuration
 
-| Connection | ESP32 configuration |
+### I2C Bus
+
+| Device | Connection | ESP32 configuration |
+|---|---|---|
+| SHT31 | SDA | GPIO 21 |
+| SHT31 | SCL | GPIO 22 |
+| SHT31 | I2C address | `0x45` |
+| MPU6050 | SDA | GPIO 21 |
+| MPU6050 | SCL | GPIO 22 |
+| MPU6050 | I2C address | `0x68` |
+| SSD1306 OLED | SDA | GPIO 21 |
+| SSD1306 OLED | SCL | GPIO 22 |
+| SSD1306 OLED | I2C address | `0x3C` |
+
+### Status Outputs
+
+| Output | ESP32 pin |
 |---|---|
-| SHT31 SDA | GPIO 21 |
-| SHT31 SCL | GPIO 22 |
-| SHT31 I2C address | `0x45` |
+| Green LED | GPIO 27 |
+| Yellow LED | GPIO 26 |
+| Red LED | GPIO 25 |
+| Active buzzer | GPIO 14 |
+
+### microSD SPI Bus
+
+| microSD connection | ESP32 pin |
+|---|---|
+| SCK / CLK | GPIO 18 |
+| MISO | GPIO 19 |
+| MOSI | GPIO 23 |
+| CS | GPIO 5 |
+| VCC | 3.3 V |
+| GND | GND |
+
+### Development Configuration
+
+| Setting | Value |
+|---|---|
 | Serial Monitor speed | 115200 baud |
-| PlatformIO environment | `esp32dev` |
+| Primary PlatformIO environment | `esp32dev` |
+| I2C diagnostic environment | `i2c_scanner` |
+| microSD diagnostic environment | `sd_card_test` |
 
 The wiring and I2C address must be verified against the specific sensor breakout being used before uploading firmware.
 
@@ -204,24 +295,63 @@ The wiring and I2C address must be verified against the specific sensor breakout
 - USB data cable compatible with the ESP32
 - ESP32 development board
 - SHT31 temperature and humidity sensor
+- MPU6050 accelerometer
+- SSD1306 128 x 64 OLED display
+- microSD card module
+- FAT32-formatted microSD card
+- Green, yellow, and red LEDs
+- Current-limiting resistors
+- Active buzzer
+- Breadboard and jumper wires
 
 ### PlatformIO Workflow
 
 1. Clone or download the repository.
 2. Open the repository folder in Visual Studio Code.
 3. Allow PlatformIO to install the platform and library dependencies defined in `platformio.ini`.
-4. Connect the ESP32 to the computer using a USB data cable.
-5. Build the `esp32dev` environment.
-6. Upload the firmware to the ESP32.
-7. Open the Serial Monitor at 115200 baud.
-8. Verify that the SHT31 initializes and begins reporting live readings.
+4. Verify the wiring and device addresses before applying power.
+5. Connect the ESP32 using a USB data cable.
+6. Build the main `esp32dev` environment.
+7. Upload the firmware to the ESP32.
+8. Open the Serial Monitor at 115200 baud.
+9. Confirm successful initialization of the microSD card, OLED, SHT31, and MPU6050.
+10. Verify live OLED and Serial Monitor readings.
+11. Confirm that the status LEDs and buzzer respond to the calculated status.
+12. Power down the ESP32 before removing the microSD card.
+13. Open `/hvac_readings.csv` and verify that measurements were appended correctly.
 
 ### Command-Line Workflow
 
+Build the main firmware:
+
 ```powershell
-pio run
-pio run --target upload
+pio run -e esp32dev
+```
+
+Upload the main firmware:
+
+```powershell
+pio run -e esp32dev --target upload
+```
+
+Open the Serial Monitor:
+
+```powershell
 pio device monitor --baud 115200
+```
+
+Build and upload the I2C diagnostic firmware:
+
+```powershell
+pio run -e i2c_scanner
+pio run -e i2c_scanner --target upload
+```
+
+Build and upload the microSD diagnostic firmware:
+
+```powershell
+pio run -e sd_card_test
+pio run -e sd_card_test --target upload
 ```
 
 The command-line workflow requires the PlatformIO Core command-line tools to be available in the terminal environment.
@@ -246,26 +376,79 @@ The ESP32 firmware can be compiled separately with:
 pio run -e esp32dev
 ```
 
-## Simulated Data
+## CSV Data Logging
 
-The current firmware still uses placeholder values for:
+When the microSD card initializes successfully, the firmware creates or appends to:
 
-- Vibration level
-- Airflow reading
+```text
+/hvac_readings.csv
+```
 
-The overall system status is no longer simulated. It is calculated from live temperature and humidity readings by the `StatusClassifier` module.
+The logger uses the following column order:
 
-The remaining placeholders allow the program structure and `HVACReading` data model to continue developing before the vibration and airflow hardware is integrated.
+```csv
+time_ms,temperature_f,humidity_percent,vibration_mps2,status
+```
 
-## Planned Features
+Example records:
 
-- Physical vibration-sensor integration.
-- Airflow-sensing implementation.
-- Configurable warning and danger thresholds.
-- Real-time OLED measurements and system status.
-- Green, yellow, and red LED status indicators.
-- Audible alerts using an active buzzer.
-- Local data logging.
-- Improved power delivery and physical installation.
-- Protective enclosure design.
-- Long-term HVAC condition testing.
+```csv
+1425,86.58,57.29,0.39,NORMAL
+3506,86.58,57.42,0.34,NORMAL
+5587,86.54,57.43,0.33,NORMAL
+```
+
+| Column | Description |
+|---|---|
+| `time_ms` | Elapsed milliseconds since the ESP32 started |
+| `temperature_f` | SHT31 temperature measurement in degrees Fahrenheit |
+| `humidity_percent` | SHT31 relative humidity measurement |
+| `vibration_mps2` | MPU6050 acceleration-based vibration estimate |
+| `status` | Environmental classification returned by `StatusClassifier` |
+
+The header is written only when the file is empty. Existing measurements are preserved, and new readings are appended after each monitoring cycle.
+
+The file is closed after every completed record to reduce the chance of losing multiple readings during an unexpected shutdown. The ESP32 should still be powered down before physically removing the microSD card.
+
+## Known Measurement Limitations
+
+- Temperature and humidity are measured directly by the SHT31.
+- Vibration is calculated from live MPU6050 acceleration data, but it is currently an uncalibrated motion estimate rather than a validated machine-vibration metric.
+- The vibration estimate uses acceleration magnitude relative to gravity and does not yet use RMS analysis, filtering, frequency analysis, or equipment-specific thresholds.
+- Airflow is not measured and is not included in the firmware data model or CSV log.
+- `timeMs` records elapsed milliseconds since startup rather than real calendar date and time.
+- Temperature and humidity status thresholds are prototype values and may require adjustment after field testing.
+- The breadboard implementation is a development prototype and is not ready for permanent HVAC installation.
+
+## Roadmap
+
+### Near-Term Development
+
+- Mount the MPU6050 securely and collect repeatable baseline vibration data.
+- Replace the single-sample vibration estimate with a windowed measurement such as RMS vibration.
+- Compare equipment-off, startup, normal-operation, and abnormal-motion data.
+- Develop documented vibration thresholds based on collected measurements.
+- Add real timestamps using network time or a real-time clock module.
+- Add configurable data-logging intervals and session identifiers.
+- Improve SD-card error reporting and recovery behavior.
+
+### Hardware Development
+
+- Improve power delivery for operation away from a computer.
+- Replace temporary breadboard connections with a more secure prototype assembly.
+- Design and print a protective enclosure with sensor ventilation and microSD access.
+- Add strain relief and secure mounting for external wiring.
+- Evaluate differential-pressure sensing for filter restriction and airflow-related monitoring.
+- Calibrate any future airflow or pressure measurements before adding them to the data model.
+
+### Data Analysis
+
+- Import logged CSV measurements into Python.
+- Plot temperature, humidity, and vibration trends over time.
+- Compare data from multiple operating sessions.
+- Identify startup, shutdown, and unusual vibration events.
+- Evaluate basic anomaly-detection methods after collecting sufficient real-world data.
+
+### Long-Term Goal
+
+Develop the breadboard prototype into a documented, calibrated, and enclosed HVAC condition-monitoring device suitable for controlled field testing.
